@@ -1,0 +1,77 @@
+name: Build & Release APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build release APK
+        id: build
+        run: |
+          chmod +x gradlew
+          set -o pipefail
+          ./gradlew --no-daemon --stacktrace assembleRelease 2>&1 | tee build.log
+
+      - name: Rename APK
+        if: success()
+        run: |
+          mkdir -p out
+          cp app/build/outputs/apk/release/app-release.apk out/EzanoTV.apk
+          ls -la out
+
+      - name: Publish release
+        if: success()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Ezano TV 1.0.${{ github.run_number }}
+          make_latest: true
+          body: |
+            Ezano TV build ${{ github.run_number }} (${{ github.sha }}).
+            Direct download (always the newest): https://github.com/${{ github.repository }}/releases/latest/download/EzanoTV.apk
+          files: out/EzanoTV.apk
+
+      - name: Report CI status to ci-status branch
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          mkdir -p /tmp/status
+          {
+            echo "run=${{ github.run_number }}"
+            echo "sha=${{ github.sha }}"
+            echo "status=$STATUS"
+          } > /tmp/status/status.txt
+          if [ -f build.log ]; then
+            grep -E "^e: |error:|FAILURE|What went wrong|Could not|> Task .* FAILED|Unresolved|AAPT|Execution failed" build.log | head -300 > /tmp/status/errors.txt || true
+            tail -150 build.log > /tmp/status/tail.txt
+          fi
+          cd /tmp/status
+          git init -q
+          git config user.name "ci-bot"
+          git config user.email "ci-bot@users.noreply.github.com"
+          git checkout -q -b ci-status
+          git add -A
+          git commit -q -m "CI run ${{ github.run_number }}: $STATUS"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" ci-status
