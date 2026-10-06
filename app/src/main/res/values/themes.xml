@@ -1,0 +1,15 @@
+<resources>
+    <style name="Theme.Ezano" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/ezano_bg</item>
+        <item name="android:colorBackground">@color/ezano_bg</item>
+        <item name="android:statusBarColor">@color/ezano_bg</item>
+        <item name="android:navigationBarColor">@color/ezano_bg</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+    </style>
+    <style name="Theme.Ezano.Player">
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
+    <color name="ezano_bg">#FF07080C</color>
+    <color name="ic_launcher_background">#FF0B0A14</color>
+</resources>
